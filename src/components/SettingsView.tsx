@@ -7,16 +7,40 @@ import React, { useState } from 'react';
 
 interface SettingsViewProps {
   userEmail: string;
+  userDisplayName: string;
+  onUpdateProfile: (displayName: string) => Promise<void>;
   onResetData: () => void;
   onSignOut: () => void;
 }
 
-export default function SettingsView({ userEmail, onResetData, onSignOut }: SettingsViewProps) {
+export default function SettingsView({
+  userEmail,
+  userDisplayName,
+  onUpdateProfile,
+  onResetData,
+  onSignOut,
+}: SettingsViewProps) {
+  const [displayName, setDisplayName] = useState<string>(userDisplayName);
   const [systolicThreshold, setSystolicThreshold] = useState<number>(130);
   const [diastolicThreshold, setDiastolicThreshold] = useState<number>(85);
   const [pulseNotification, setPulseNotification] = useState<boolean>(true);
   const [complianceLog, setComplianceLog] = useState<boolean>(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [profileBusy, setProfileBusy] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    setDisplayName(userDisplayName);
+  }, [userDisplayName]);
+
+  const handleSaveProfile = async () => {
+    setProfileBusy(true);
+    try {
+      await onUpdateProfile(displayName);
+      setToastMessage('Profile updated successfully.');
+    } finally {
+      setProfileBusy(false);
+    }
+  };
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -42,14 +66,39 @@ export default function SettingsView({ userEmail, onResetData, onSignOut }: Sett
           </div>
           
           <div className="text-center sm:text-left flex-1 space-y-1">
-            <h3 className="text-white text-lg font-bold tracking-tight">Dr. Aris</h3>
-            <p className="text-xs text-on-surface-variant font-mono uppercase tracking-wider">Chief Clinical Analyst (VitalsFlow)</p>
-            <p className="text-xs text-red-400 font-mono italic">{userEmail || 'Bryankum05@gmail.com'}</p>
+            <h3 className="text-white text-lg font-bold tracking-tight">{userDisplayName}</h3>
+            <p className="text-xs text-on-surface-variant font-mono uppercase tracking-wider">Current signed-in profile</p>
+            <p className="text-xs text-red-400 font-mono italic">{userEmail || 'No email available'}</p>
           </div>
-          
-          <span className="bg-[#0a0a0c] text-red-400 text-[10px] font-mono tracking-wider font-bold px-3 py-1.5 rounded-xl border border-white/5">
-            SYSTEM ADMIN
-          </span>
+        </div>
+      </section>
+
+      <section className="glass-panel p-6 rounded-[32px] border border-white/5 space-y-4 shadow-2xl">
+        <div>
+          <h3 className="text-sm font-semibold text-white tracking-wide uppercase">Edit Profile</h3>
+          <p className="text-xs text-on-surface-variant">Update the name shown in the app header and settings panel.</p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
+          <div className="space-y-2">
+            <label className="text-xs uppercase tracking-wider text-[#a1a1aa]">Display name</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              className="w-full h-12 rounded-xl bg-[#0a0a0c] border border-white/10 px-4 text-white focus:outline-none focus:border-red-500/40"
+              placeholder="Enter your name"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void handleSaveProfile()}
+            disabled={profileBusy}
+            className="px-5 py-3 rounded-xl bg-gradient-to-tr from-red-500 to-rose-600 text-white text-xs font-bold uppercase tracking-wider disabled:opacity-70"
+          >
+            {profileBusy ? 'Saving...' : 'Save Profile'}
+          </button>
         </div>
       </section>
 

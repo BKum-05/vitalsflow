@@ -21,6 +21,7 @@ import {
   registerAccount,
   watchAuth,
   saveAccountData,
+  updateAccountProfile,
   AccountUser,
 } from './lib/accountStorage';
 import { initialInsights, initialPatterns } from './data';
@@ -36,6 +37,8 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAppReady, setIsAppReady] = useState<boolean>(false);
   const [showSignOutConfirm, setShowSignOutConfirm] = useState<boolean>(false);
+  const [showNotificationsPanel, setShowNotificationsPanel] = useState<boolean>(false);
+  const [showCalendarPanel, setShowCalendarPanel] = useState<boolean>(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -193,6 +196,35 @@ export default function App() {
     setShowSignOutConfirm(false);
   };
 
+  const handleUpdateProfile = async (displayName: string) => {
+    if (!currentUser) {
+      return;
+    }
+
+    const updatedUser = await updateAccountProfile(currentUser.uid, displayName);
+    setCurrentUser(updatedUser);
+    setToastMessage('Profile updated.');
+  };
+
+  const latestReading = readings[readings.length - 1] ?? null;
+  const recentNotifications = [
+    latestReading && (latestReading.systolic >= 140 || latestReading.diastolic >= 90)
+      ? `Latest reading is elevated at ${latestReading.systolic}/${latestReading.diastolic} mmHg.`
+      : 'No urgent blood pressure alerts right now.',
+    medications.some((medication) => !medication.taken)
+      ? 'Some scheduled medications are still pending for today.'
+      : 'All tracked medications are marked as taken.',
+    'Tap the calendar icon to review recent history and trends.',
+  ].filter(Boolean) as string[];
+
+  const calendarSummary = latestReading
+    ? [
+        `Most recent log: ${new Date(latestReading.timestamp).toLocaleDateString()}`,
+        `${latestReading.systolic}/${latestReading.diastolic} mmHg, pulse ${latestReading.pulse} BPM`,
+        'Use Trends to compare the last 7 days, 30 days, or 6 months.',
+      ]
+    : ['No readings logged yet.', 'Use Quick Log to add a first entry.', 'Trends will populate after you log data.'];
+
   if (!isAppReady) {
     return (
       <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center">
@@ -292,17 +324,83 @@ export default function App() {
             <span className="text-[10px] text-on-surface-variant mt-0.5">{currentUser.email}</span>
           </div>
 
+          <div className="hidden md:flex items-center gap-2.5 ml-2 relative">
+            <button
+              type="button"
+              onClick={() => {
+                setShowCalendarPanel(false);
+                setShowNotificationsPanel((current) => !current);
+              }}
+              className="p-2 rounded-xl text-on-surface-variant hover:text-primary hover:bg-white/5 transition-colors"
+              aria-label="Open notifications"
+            >
+              <span className="material-symbols-outlined text-xl">notifications</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowNotificationsPanel(false);
+                setShowCalendarPanel((current) => !current);
+              }}
+              className="p-2 rounded-xl text-on-surface-variant hover:text-primary hover:bg-white/5 transition-colors"
+              aria-label="Open calendar summary"
+            >
+              <span className="material-symbols-outlined text-xl">calendar_today</span>
+            </button>
+
+            {showNotificationsPanel && (
+              <div className="absolute top-14 right-10 w-80 rounded-2xl border border-white/10 bg-[#0a0a0c] shadow-[0_20px_50px_rgba(0,0,0,0.65)] p-4 z-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Notifications</h3>
+                  <button type="button" onClick={() => setShowNotificationsPanel(false)} className="text-[#a1a1aa] hover:text-white">
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+                <div className="space-y-2 text-xs text-[#e4e4e7]">
+                  {recentNotifications.map((item) => (
+                    <div key={item} className="rounded-xl border border-white/5 bg-white/5 px-3 py-2 leading-relaxed">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showCalendarPanel && (
+              <div className="absolute top-14 right-0 w-80 rounded-2xl border border-white/10 bg-[#0a0a0c] shadow-[0_20px_50px_rgba(0,0,0,0.65)] p-4 z-50">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Calendar summary</h3>
+                  <button type="button" onClick={() => setShowCalendarPanel(false)} className="text-[#a1a1aa] hover:text-white">
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+                <div className="space-y-2 text-xs text-[#e4e4e7] mb-3">
+                  {calendarSummary.map((item) => (
+                    <div key={item} className="rounded-xl border border-white/5 bg-white/5 px-3 py-2 leading-relaxed">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('trends');
+                    setShowCalendarPanel(false);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-tr from-red-500 to-rose-600 text-white text-xs font-semibold"
+                >
+                  Open Trends
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleSignOut}
             className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-semibold border border-white/10 transition-colors"
           >
             Sign Out
           </button>
-
-          <div className="hidden md:flex items-center gap-2.5 ml-2">
-            <span className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer text-xl">notifications</span>
-            <span className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer text-xl">calendar_today</span>
-          </div>
         </div>
       </header>
 
@@ -336,6 +434,8 @@ export default function App() {
         {activeTab === 'settings' && (
           <SettingsView
             userEmail={currentUser.email}
+            userDisplayName={currentUser.displayName}
+            onUpdateProfile={handleUpdateProfile}
             onResetData={handleResetData}
             onSignOut={handleSignOut}
           />

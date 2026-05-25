@@ -356,3 +356,49 @@ export const resetAccountData = async (uid: string) => {
   saveLocalAccountData(uid, freshData);
   return freshData;
 };
+
+export const updateAccountProfile = async (uid: string, displayName: string): Promise<AccountUser> => {
+  const trimmedName = displayName.trim() || 'User';
+
+  if (firebaseEnabled && firebaseAuth && firestoreDb) {
+    const activeUser = firebaseAuth.currentUser;
+    if (activeUser && activeUser.uid === uid) {
+      await updateProfile(activeUser, { displayName: trimmedName });
+    }
+
+    await setDoc(
+      getUserDocRef(uid),
+      {
+        uid,
+        displayName: trimmedName,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    const email = activeUser?.email ?? uid;
+    return {
+      uid,
+      email,
+      displayName: trimmedName,
+    };
+  }
+
+  const accounts = loadAccounts();
+  const accountKey = normalizeEmail(uid);
+  const account = accounts[accountKey] ?? accounts[normalizeEmail(uid)] ?? null;
+
+  if (account) {
+    accounts[accountKey] = {
+      ...account,
+      displayName: trimmedName,
+    };
+    saveAccounts(accounts);
+  }
+
+  return {
+    uid,
+    email: account?.email ?? uid,
+    displayName: trimmedName,
+  };
+};
