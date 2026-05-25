@@ -1,0 +1,6 @@
+{
+  "name": "VitalsFlow",
+  "description": "VitalsFlow is a clinical blood pressure and vitals tracker designed with modern glassmorphism, responsive navigation, dynamic quick logging, and real-time medical trend calculations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

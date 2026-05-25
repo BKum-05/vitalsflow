@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #050505;
+  --color-on-background: #F9FAFB;
+  
+  --color-surface: #0a0a0a;
+  --color-surface-dim: #050505;
+  --color-surface-bright: #242427;
+  --color-surface-container-lowest: #020202;
+  --color-surface-container-low: #080808;
+  --color-surface-container: #0f0f11;
+  --color-surface-container-high: #18181b;
+  --color-surface-container-highest: #27272a;
+  
+  --color-on-surface: #F9FAFB;
+  --color-on-surface-variant: #a1a1aa;
+  --color-inverse-surface: #F9FAFB;
+  --color-inverse-on-surface: #18181b;
+  
+  --color-outline: #71717a;
+  --color-outline-variant: #3f3f46;
+  --color-surface-tint: #ef4444;
+  
+  --color-primary: #ef4444;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ff4b55;
+  --color-on-primary-container: #ffffff;
+  --color-inverse-primary: #991b1b;
+  
+  --color-secondary: #3b82f6;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #2563eb;
+  --color-on-secondary-container: #dbeafe;
+  
+  --color-tertiary: #10b981;
+  --color-on-tertiary: #042f2e;
+  --color-tertiary-container: #059669;
+  --color-on-tertiary-container: #ecfdf5;
+  
+  --color-error: #ef4444;
+  --color-on-error: #ffffff;
+  --color-error-container: #b91c1c;
+  --color-on-error-container: #fee2e2;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Custom styles and utilities as specified in Google Stitch designs */
+
+.glass-card, .glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-card:hover, .glass-panel:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 25px rgba(239, 68, 68, 0.1);
+}
+
+.pulse-wave {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: dash 4s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.glow-indigo {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.glow-tertiary {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.35);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.35);
+}
+
+.ai-glow-border {
+  position: relative;
+  background: rgba(10, 10, 10, 0.85);
+  border-radius: 2rem;
+}
+
+.ai-glow-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(45deg, #ef4444, #3b82f6, #f43f5e, #10b981);
+  border-radius: 2.1rem;
+  z-index: -1;
+  opacity: 0.35;
+  filter: blur(12px);
+  animation: rotateGlow 8s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes rotateGlow {
+  0% { filter: blur(8px) hue-rotate(0deg); }
+  100% { filter: blur(8px) hue-rotate(360deg); }
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b1326;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2d3449;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #464554;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Typography styles based on spec */
+.telemetry-font {
+  font-family: "Inter", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.label-mono {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 500;
+}
+
