@@ -14,24 +14,16 @@ import QuickLogModal from './components/QuickLogModal';
 import AuthScreen from './components/AuthScreen';
 import {
   clearAccountData,
-  clearSessionEmail,
   createDefaultAccountData,
-  hashPassword,
+  loginAccount,
   loadAccountData,
-  loadAccounts,
-  loadSessionEmail,
-  normalizeEmail,
+  logoutAccount,
+  registerAccount,
+  watchAuth,
   saveAccountData,
-  saveAccounts,
-  saveSessionEmail,
-  StoredAccount,
+  AccountUser,
 } from './lib/accountStorage';
 import { initialInsights, initialPatterns } from './data';
-
-interface CurrentUser {
-  email: string;
-  displayName: string;
-}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
@@ -39,38 +31,48 @@ export default function App() {
   const [medications, setMedications] = useState<Medication[]>(createDefaultAccountData().medications);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isQuickLogOpen, setIsQuickLogOpen] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [currentUser, setCurrentUser] = useState<AccountUser | null>(null);
   const [authLoading, setAuthLoading] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAppReady, setIsAppReady] = useState<boolean>(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState<boolean>(false);
 
   useEffect(() => {
-    const sessionEmail = loadSessionEmail();
+    let isMounted = true;
 
-    if (sessionEmail) {
-      const accounts = loadAccounts();
-      const storedAccount = accounts[normalizeEmail(sessionEmail)];
-
-      if (storedAccount) {
-        setCurrentUser({
-          email: storedAccount.email,
-          displayName: storedAccount.displayName,
-        });
-
-        const accountData = loadAccountData(storedAccount.email);
-        setReadings(accountData.readings);
-        setMedications(accountData.medications);
-      } else {
-        clearSessionEmail();
+    const unsubscribe = watchAuth(async (user) => {
+      if (!isMounted) {
+        return;
       }
-    }
 
-    setIsAppReady(true);
+      if (!user) {
+        setCurrentUser(null);
+        setReadings([]);
+        setMedications(createDefaultAccountData().medications);
+        setIsAppReady(true);
+        return;
+      }
+
+      setCurrentUser(user);
+      const accountData = await loadAccountData(user.uid);
+      if (!isMounted) {
+        return;
+      }
+
+      setReadings(accountData.readings);
+      setMedications(accountData.medications);
+      setIsAppReady(true);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
     if (currentUser) {
-      saveAccountData(currentUser.email, { readings, medications });
+      void saveAccountData(currentUser.uid, { readings, medications });
     }
   }, [currentUser, readings, medications]);
 
@@ -101,54 +103,20 @@ export default function App() {
     setAuthError(null);
 
     try {
-      const normalizedEmail = normalizeEmail(email);
-      const accounts = loadAccounts();
-      const passwordHash = await hashPassword(password);
+      const user =
+        mode === 'register'
+          ? await registerAccount(email, password, displayName)
+          : await loginAccount(email, password);
 
-      if (mode === 'register') {
-        if (accounts[normalizedEmail]) {
-          throw new Error('An account with this email already exists.');
-        }
-
-        const createdAccount: StoredAccount = {
-          email: normalizedEmail,
-          displayName: displayName.trim() || normalizedEmail.split('@')[0],
-          passwordHash,
-          createdAt: new Date().toISOString(),
-        };
-
-        accounts[normalizedEmail] = createdAccount;
-        saveAccounts(accounts);
-        saveSessionEmail(normalizedEmail);
-
-        const initialData = createDefaultAccountData();
-        saveAccountData(normalizedEmail, initialData);
-
-        setCurrentUser({
-          email: createdAccount.email,
-          displayName: createdAccount.displayName,
-        });
-        setReadings(initialData.readings);
-        setMedications(initialData.medications);
-        setToastMessage(`Account created for ${createdAccount.displayName}.`);
-        return;
-      }
-
-      const account = accounts[normalizedEmail];
-      if (!account || account.passwordHash !== passwordHash) {
-        throw new Error('Invalid email or password.');
-      }
-
-      saveSessionEmail(normalizedEmail);
-
-      const accountData = loadAccountData(account.email);
-      setCurrentUser({
-        email: account.email,
-        displayName: account.displayName,
-      });
+      setCurrentUser(user);
+      const accountData = await loadAccountData(user.uid);
       setReadings(accountData.readings);
       setMedications(accountData.medications);
-      setToastMessage(`Welcome back, ${account.displayName}.`);
+      setToastMessage(
+        mode === 'register'
+          ? `Account created for ${user.displayName}.`
+          : `Welcome back, ${user.displayName}.`
+      );
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Unable to access the account.');
     } finally {
@@ -195,25 +163,34 @@ export default function App() {
       return;
     }
 
-    clearAccountData(currentUser.email);
+    clearAccountData(currentUser.uid);
     const freshData = createDefaultAccountData();
     setReadings(freshData.readings);
     setMedications(freshData.medications);
     setToastMessage('This account has been reset to a fresh start.');
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    setShowSignOutConfirm(true);
+  };
+
+  const confirmSignOut = async () => {
     if (currentUser) {
-      saveAccountData(currentUser.email, { readings, medications });
+      await saveAccountData(currentUser.uid, { readings, medications });
     }
 
-    clearSessionEmail();
+    await logoutAccount();
+    setShowSignOutConfirm(false);
     setCurrentUser(null);
     setReadings([]);
     setMedications(createDefaultAccountData().medications);
     setIsQuickLogOpen(false);
     setActiveTab('dashboard');
     setToastMessage('Signed out.');
+  };
+
+  const cancelSignOut = () => {
+    setShowSignOutConfirm(false);
   };
 
   if (!isAppReady) {
@@ -254,6 +231,34 @@ export default function App() {
           >
             <span className="material-symbols-outlined text-sm">close</span>
           </button>
+        </div>
+      )}
+
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#0a0a0c] shadow-[0_30px_80px_rgba(0,0,0,0.65)] p-6">
+            <h2 className="text-xl font-bold text-white">Sign out?</h2>
+            <p className="mt-2 text-sm text-[#a1a1aa] leading-relaxed">
+              Your current session will close. Any recent changes will be saved before you leave.
+            </p>
+
+            <div className="mt-6 flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={cancelSignOut}
+                className="px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white text-sm font-semibold hover:bg-white/10 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmSignOut()}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-tr from-red-500 to-rose-600 text-white text-sm font-semibold hover:opacity-95 transition-opacity"
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

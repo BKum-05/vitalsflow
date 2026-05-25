@@ -18,3 +18,10 @@ View your app in AI Studio: https://ai.studio/apps/bf5630f9-75a5-47b7-9b3c-cdeea
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Firebase Setup
+
+1. Copy [.env.example](.env.example) to [.env.local](.env.local).
+2. Fill in the Firebase values from your Firebase web app config.
+3. In Firebase Console, enable Authentication and Cloud Firestore.
+4. Deploy the rules from [firestore.rules](firestore.rules) or paste them into the Firestore Rules editor.

@@ -123,9 +123,9 @@ export default function AuthScreen({ onSubmit, loading, error }: AuthScreenProps
           </button>
         </form>
 
-        <p className="mt-4 text-[11px] text-[#a1a1aa] leading-relaxed">
-          Accounts are stored locally on this device. If you want shared access across devices later, Firebase is the better next step.
-        </p>
+        {/* <p className="mt-4 text-[11px] text-[#a1a1aa] leading-relaxed">
+          Sync to Firebase.
+        </p> */}
       </div>
     </div>
   );

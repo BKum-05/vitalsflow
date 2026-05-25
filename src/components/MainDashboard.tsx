@@ -4,10 +4,11 @@
  */
 
 import React, { useState } from 'react';
-import { VitalsReading, TrendPoint, AIInsightCard } from '../types';
+import { VitalsReading, TrendPoint, AIInsightCard, Medication } from '../types';
 
 interface MainDashboardProps {
   readings: VitalsReading[];
+  medications: Medication[];
   insights: AIInsightCard[];
   onOpenQuickLog: () => void;
   onSaveReading: (newReadingData: Omit<VitalsReading, 'id' | 'timestamp'>) => void;
