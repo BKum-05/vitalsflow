@@ -18,11 +18,16 @@ import {
 } from 'firebase/auth';
 import {
   doc,
+  deleteDoc,
   getDoc,
   getFirestore,
   serverTimestamp,
   setDoc,
   type Firestore,
+  collection,
+  getDocs,
+  orderBy,
+  query,
 } from 'firebase/firestore';
 
 interface FirebaseWebConfig {
@@ -73,5 +78,5 @@ if (firebaseConfig) {
 }
 
 export { firebaseApp, firebaseAuth, firestoreDb };
-export { browserLocalPersistence, createUserWithEmailAndPassword, doc, getDoc, onAuthStateChanged, serverTimestamp, setDoc, signInWithEmailAndPassword, signOut, updateProfile };
+export { browserLocalPersistence, createUserWithEmailAndPassword, collection, deleteDoc, doc, getDoc, getDocs, onAuthStateChanged, orderBy, query, serverTimestamp, setDoc, signInWithEmailAndPassword, signOut, updateProfile };
 export type { User };

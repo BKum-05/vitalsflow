@@ -7,12 +7,17 @@ import { initialMedications } from '../data';
 import { Medication, VitalsReading } from '../types';
 import {
   createUserWithEmailAndPassword,
+  collection,
+  deleteDoc,
   doc,
   firebaseAuth,
   firebaseEnabled,
   firestoreDb,
   getDoc,
+  getDocs,
   onAuthStateChanged,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
   signInWithEmailAndPassword,
@@ -132,6 +137,14 @@ const getAccountDocRef = (uid: string) => {
   return doc(firestoreDb, 'users', uid, 'appData', 'current');
 };
 
+const getReadingsCollectionRef = (uid: string) => {
+  if (!firestoreDb) {
+    throw new Error('Firestore is not available.');
+  }
+
+  return collection(firestoreDb, 'users', uid, 'readings');
+};
+
 const mapFirebaseUser = async (firebaseUser: User): Promise<AccountUser> => {
   const profileSnapshot = firestoreDb ? await getDoc(getUserDocRef(firebaseUser.uid)) : null;
   const profileData = profileSnapshot?.exists() ? profileSnapshot.data() : null;
@@ -200,6 +213,7 @@ export const registerAccount = async (email: string, password: string, displayNa
     await updateProfile(credential.user, { displayName: trimmedName });
 
     const initialData = createDefaultAccountData();
+    saveLocalAccountData(credential.user.uid, initialData);
     await setDoc(
       getUserDocRef(credential.user.uid),
       {
@@ -217,7 +231,6 @@ export const registerAccount = async (email: string, password: string, displayNa
       {
         email: normalizedEmail,
         displayName: trimmedName,
-        readings: initialData.readings,
         medications: initialData.medications,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -299,51 +312,101 @@ export const logoutAccount = async () => {
 };
 
 export const loadAccountData = async (uid: string): Promise<AccountData> => {
-  if (firebaseEnabled && firestoreDb) {
-    const snapshot = await getDoc(getAccountDocRef(uid));
-    if (!snapshot.exists()) {
-      return createDefaultAccountData();
-    }
+  const localData = readLocalAccountData(uid);
 
-    const data = snapshot.data() as Partial<AccountData>;
-    return {
-      readings: Array.isArray(data.readings) ? data.readings : [],
-      medications:
-        Array.isArray(data.medications) && data.medications.length > 0
-          ? data.medications
-          : createDefaultAccountData().medications,
-    };
+  if (firebaseEnabled && firestoreDb) {
+    try {
+      const remoteData: AccountData = {
+        readings: [],
+        medications: createDefaultAccountData().medications,
+      };
+
+      const [accountSnapshot, readingsSnapshot] = await Promise.all([
+        getDoc(getAccountDocRef(uid)),
+        getDocs(query(getReadingsCollectionRef(uid), orderBy('timestamp', 'asc'))),
+      ]);
+
+      if (accountSnapshot.exists()) {
+        const data = accountSnapshot.data() as Partial<AccountData>;
+        remoteData.medications =
+          Array.isArray(data.medications) && data.medications.length > 0
+            ? data.medications
+            : createDefaultAccountData().medications;
+
+        if (readingsSnapshot.docs.length === 0 && Array.isArray(data.readings) && data.readings.length > 0) {
+          remoteData.readings = data.readings;
+        }
+      }
+
+      if (remoteData.readings.length === 0) {
+        remoteData.readings = readingsSnapshot.docs.map((snapshot) => snapshot.data() as VitalsReading);
+      }
+
+      if (remoteData.readings.length > 0) {
+        return remoteData;
+      }
+
+      if (localData.readings.length > 0) {
+        return localData;
+      }
+
+      return remoteData;
+    } catch {
+      return localData;
+    }
   }
 
-  return readLocalAccountData(uid);
+  return localData;
 };
 
 export const saveAccountData = async (uid: string, data: AccountData) => {
+  saveLocalAccountData(uid, data);
+
   if (firebaseEnabled && firestoreDb) {
-    await setDoc(
-      getAccountDocRef(uid),
-      {
-        readings: data.readings,
-        medications: data.medications,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    try {
+      const readingsCollectionRef = getReadingsCollectionRef(uid);
+      const existingReadingsSnapshot = await getDocs(readingsCollectionRef);
+
+      await Promise.all(
+        data.readings.map((reading) =>
+          setDoc(doc(readingsCollectionRef, reading.id), reading, { merge: true })
+        )
+      );
+
+      await Promise.all(
+        existingReadingsSnapshot.docs
+          .filter((snapshot) => !data.readings.some((reading) => reading.id === snapshot.id))
+          .map((snapshot) => deleteDoc(snapshot.ref))
+      );
+
+      await setDoc(
+        getAccountDocRef(uid),
+        {
+          medications: data.medications,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch {
+      return;
+    }
 
     return;
   }
-
-  saveLocalAccountData(uid, data);
 };
 
 export const resetAccountData = async (uid: string) => {
   const freshData = createDefaultAccountData();
 
   if (firebaseEnabled && firestoreDb) {
+    const readingsCollectionRef = getReadingsCollectionRef(uid);
+    const existingReadingsSnapshot = await getDocs(readingsCollectionRef);
+
+    await Promise.all(existingReadingsSnapshot.docs.map((snapshot) => deleteDoc(snapshot.ref)));
+
     await setDoc(
       getAccountDocRef(uid),
       {
-        readings: freshData.readings,
         medications: freshData.medications,
         updatedAt: serverTimestamp(),
       },

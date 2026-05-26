@@ -410,7 +410,6 @@ export default function App() {
             readings={readings}
             medications={medications}
             insights={initialInsights}
-            onToggleMedication={handleToggleMedication}
             onOpenQuickLog={() => setIsQuickLogOpen(true)}
             onSaveReading={handleSaveReading}
           />
